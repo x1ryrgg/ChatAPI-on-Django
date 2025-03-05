@@ -34,8 +34,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 class ChatSerializer(serializers.ModelSerializer):
     members = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True, required=False)
-    creator = serializers.HiddenField(default=serializers.CurrentUserDefault())
-    messages = MessageSerializer(many=True, read_only=True)  # Используем related_name
+    messages = MessageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Chat

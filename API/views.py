@@ -17,6 +17,11 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Регистрация пользователя
+        url: /register/
+        body: username (str), password (str), email (str)
+        """
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()  # Создаем нового пользователя
@@ -38,6 +43,10 @@ class RegisterView(generics.CreateAPIView):
 #
 
 class user(ModelViewSet):
+    """
+    Список пользователей
+    url: /user/
+    """
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -48,7 +57,10 @@ class ChatsView(APIView):
 
     @staticmethod
     def get(request):
-        """ Информация о пользователе и о чатах, в которых он присутствует """
+        """
+        Информация о пользователе и о чатах, в которых он присутствует
+        url: /chats/
+        """
         user = request.user
 
         chats = Chat.objects.filter(members=user).prefetch_related('members')
@@ -78,11 +90,20 @@ class ChatAPIView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
-        """ Все чаты, в которых присутствует пользователь """
+        """
+        Все чаты, в которых присутствует пользователь
+        url: /chats/
+        """
         return Chat.objects.filter(members=self.request.user).prefetch_related('members')
 
     def perform_create(self, serializer):
-        """ Создание чата """
+        """
+        Создание чата
+        url: /chats/
+        body {
+            group_name (str), members (list)
+        }
+        """
         members_data = self.request.data.get('members', [])
 
         members = []
@@ -94,7 +115,12 @@ class ChatAPIView(ModelViewSet):
             if member not in self.request.user.friends.all():
                 raise serializers.ValidationError("Вы можете добавлять только своих друзей.")
 
-        chat = serializer.save(creator=self.request.user)
+        count_members = len(members) + 1
+        if count_members <= 2:
+            chat = serializer.save(creator=self.request.user, type='direct')
+        else:
+            chat = serializer.save(creator=self.request.user, type='group')
+
         chat.members.add(self.request.user)
         chat.members.add(*members)
 
@@ -106,7 +132,10 @@ class MessageApiView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'put']
 
     def get_queryset(self):
-        """ Сообщения в конкретном чате """
+        """
+        Сообщения в конкретном чате
+        url: chat/chat_id/messages/
+        """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, id=chat_id)
 
@@ -116,7 +145,13 @@ class MessageApiView(ModelViewSet):
         return Message.objects.filter(chat_id=chat_id).select_related('chat', 'sender')
 
     def perform_create(self, serializer):
-        """ Добавление сообщения в чат """
+        """
+        Добавление сообщения в чат
+        url: chat/chat_id/messages/
+        body {
+            body (str)
+        }
+        """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, id=chat_id)
 
@@ -129,7 +164,10 @@ class MessageApiView(ModelViewSet):
         serializer.save(chat=chat)
 
     def retrieve(self, request, *args, **kwargs):
-        """ Данные об конкретном сообщении из чата """
+        """
+        Данные об конкретном сообщении из чата
+        url: chat/chat_id/messages/message_id/
+        """
         instance = self.get_object()
 
         if request.user not in instance.chat.members.all():
@@ -142,7 +180,10 @@ class MessageApiView(ModelViewSet):
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
-        """ Удаление сообщения из чата """
+        """
+        Удаление сообщения из чата
+        url: chat/chat_id/messages/message_id/
+        """
         instance = self.get_object()
 
         if instance.sender != self.request.user:
@@ -165,12 +206,19 @@ class ChatUserControlView(ModelViewSet):
     http_method_names = ['get', 'patch', 'delete']
 
     def get_queryset(self):
-        """ Данные о чате """
+        """
+        Данные о чате
+        url: /chat/chat_id>/peer/
+        """
         chat_id = self.kwargs.get('chat_id')
         return Chat.objects.filter(id=chat_id)
 
     def partial_update(self, request, *args, **kwargs):
-        """ Добавление друзей в чат """
+        """
+        Добавление друзей в чат
+        url: chat/chat_id/peer/
+        body: members (list)
+        """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
@@ -191,7 +239,11 @@ class ChatUserControlView(ModelViewSet):
         return Response(f"Пользоваетль {members_to_add} был добавлен в чат.")
 
     def remove_members(self, request, *args, **kwargs):
-        """ Удаление пользователей из чата """
+        """
+        Удаление пользователей из чата
+        url: chat/chat_id/peer/
+        body: members (list)
+        """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
