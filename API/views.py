@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -47,6 +48,7 @@ class ChatsView(APIView):
 
     @staticmethod
     def get(request):
+        """ Информация о пользователе и о чатах, в которых он присутствует """
         user = request.user
 
         chats = Chat.objects.filter(members=user).prefetch_related('members')
@@ -76,19 +78,20 @@ class ChatAPIView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
+        """ Все чаты, в которых присутствует пользователь """
         return Chat.objects.filter(members=self.request.user).prefetch_related('members')
 
     def perform_create(self, serializer):
+        """ Создание чата """
         members_data = self.request.data.get('members', [])
 
-        # Преобразуем IDs участников в объекты User
         members = []
         for user_id in members_data:
             user = get_object_or_404(User, id=user_id)
             members.append(user)
 
-        for use in members:
-            if use not in self.request.user.friends.all():
+        for member in members:
+            if member not in self.request.user.friends.all():
                 raise serializers.ValidationError("Вы можете добавлять только своих друзей.")
 
         chat = serializer.save(creator=self.request.user)
@@ -103,16 +106,17 @@ class MessageApiView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'put']
 
     def get_queryset(self):
-        """Фильтруем сообщения по чату из URL"""
+        """ Сообщения в конкретном чате """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, id=chat_id)
 
         if self.request.user not in chat.members.all():
             return Message.objects.none()
 
-        return Message.objects.filter(chat_id=chat_id)
+        return Message.objects.filter(chat_id=chat_id).select_related('chat', 'sender')
 
     def perform_create(self, serializer):
+        """ Добавление сообщения в чат """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, id=chat_id)
 
@@ -125,6 +129,7 @@ class MessageApiView(ModelViewSet):
         serializer.save(chat=chat)
 
     def retrieve(self, request, *args, **kwargs):
+        """ Данные об конкретном сообщении из чата """
         instance = self.get_object()
 
         if request.user not in instance.chat.members.all():
@@ -137,6 +142,7 @@ class MessageApiView(ModelViewSet):
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
+        """ Удаление сообщения из чата """
         instance = self.get_object()
 
         if instance.sender != self.request.user:
@@ -156,46 +162,51 @@ class ChatUserControlView(ModelViewSet):
     serializer_class = ChatSerializer
     lookup_field = 'id'
     lookup_url_kwarg = 'chat_id'
-    http_method_names = ['get', 'put', 'delete']
+    http_method_names = ['get', 'patch', 'delete']
 
     def get_queryset(self):
+        """ Данные о чате """
         chat_id = self.kwargs.get('chat_id')
         return Chat.objects.filter(id=chat_id)
 
-    def add_users(self, request, *args, **kwargs):
+    def partial_update(self, request, *args, **kwargs):
+        """ Добавление друзей в чат """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
-        if self.request.user != chat.creator:
-            return Response(
-                {'error': 'Только создатель чата может приглашать новых участников.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if request.user != chat.creator:
+            raise serializers.ValidationError('Только создатель чата может приглашать новых участников.')
 
-        members_data = self.request.data.get('members', [])
-        members = []
+        members_data = request.data.get('members', [])
+        members_to_add = []
         for user_id in members_data:
             user = get_object_or_404(User, id=user_id)
-            members.append(user)
+            members_to_add.append(user)
 
-        for use in members:
-            if use not in self.request.user.friends.all():
-                raise serializers.ValidationError("Вы можете добавлять только своих друзей.")
-            chat.members.add(use)
+        invalid_users = [user.id for user in members_to_add if user not in self.request.user.friends.all()]
+        if invalid_users:
+            raise ValidationError(f"Вы можете добавлять только своих друзей. Недопустимые ID: {invalid_users}")
 
-        return Response(ChatSerializer(chat.members.all(), many=True).data)
+        chat.members.add(*members_to_add)
+        return Response(f"Пользоваетль {members_to_add} был добавлен в чат.")
 
     def remove_members(self, request, *args, **kwargs):
+        """ Удаление пользователей из чата """
         chat_id = self.kwargs.get('chat_id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
-        if self.request.user != chat.creator:
-            return Response(
-                {'error': 'Только создатель чата может приглашать новых участников.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        if request.user != chat.creator:
+            raise serializers.ValidationError("Только создатель чата может удалять участников.")
 
-        members = request.data.get('members', [])
-        for member in members:
-            chat.members.remove(member)
-            return Response(f"user {member} has been removed")
+        members_data = request.data.get('members', [])
+        members_to_remove = []
+        for user_id in members_data:
+            user = get_object_or_404(User, id=user_id)
+            members_to_remove.append(user)
+
+        invalid_users = [user.id for user in members_to_remove if user not in chat.members.all()]
+        if invalid_users:
+            raise ValidationError(f"Вы можете удалять тех, кого нет в чате. Недопустимые ID: {invalid_users}")
+
+        chat.members.remove(*members_to_remove)
+        return Response(f"Пользователь {members_to_remove} был удален из чата.")

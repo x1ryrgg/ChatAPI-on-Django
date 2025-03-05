@@ -16,9 +16,11 @@ class FriendRequestView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
+        """ Просмотр запросов, которые отправил пользователь """
         return FriendRequest.objects.filter(from_user=self.request.user)
 
     def perform_create(self, serializer):
+        """ Отправка запроса на добавление в друзья """
         to_user_id = self.request.data.get('to_user')
         to_user = get_object_or_404(User, id=to_user_id)
         from_user = self.request.user
@@ -38,6 +40,7 @@ class FriendRequestView(ModelViewSet):
         serializer.save(from_user=from_user)
 
     def destroy(self, request, *args, **kwargs):
+        """ Удаление запроса """
         to_user_id = self.request.data.get('to_user')
         friend_request = FriendRequest.objects.get(from_user=self.request.user, to_user=to_user_id)
         friend_request.delete()
@@ -53,9 +56,11 @@ class FriendResponseView(ModelViewSet):
     http_method_names = ['get', 'post']
 
     def get_queryset(self):
+        """ Просмотр запросов пользователю """
         return FriendRequest.objects.filter(to_user=self.request.user)
 
     def create(self, request, *args, **kwargs):
+        """ Варианты ответа на запрос (1 - добавить в друзья; 2 - отклонить запрос) """
         request_id = self.kwargs.get('request_id')
         variant = request.data.get('variant')
 

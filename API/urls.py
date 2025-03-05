@@ -20,8 +20,9 @@ urlpatterns = [
     path('chat/<int:chat_id>/', include(routermessage.urls)),
     path('chat/<int:chat_id>/peer/',
          ChatUserControlView.as_view({'get': "list",
-                                      'put': 'add_users',
+                                      'patch': 'partial_update',
                                       "delete": "remove_members"}), name='peer'),
+
 
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
