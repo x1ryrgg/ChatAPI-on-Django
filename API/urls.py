@@ -13,6 +13,10 @@ routerchat.register(r'', ChatAPIView, basename='chatapi')
 routermessage = routers.DefaultRouter()
 routermessage.register(r'messages', MessageApiView, basename='messageapi')
 
+
+router_test = routers.DefaultRouter()
+router_test.register(r'', MessageViewSet, basename='sms')
+
 urlpatterns = [
     path('', ChatsView.as_view(), name='chats'),
     path('user/', include(router.urls)),
@@ -29,4 +33,8 @@ urlpatterns = [
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
     path('register/', RegisterView.as_view(), name='register'),
 
+
+    #TEST
+    path('sms/', include(router_test.urls)),
+    path('celery/', CeleryTest.as_view(), name='celery'),
 ]

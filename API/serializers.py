@@ -1,3 +1,4 @@
+from adrf import serializers as async_serializers
 from rest_framework import serializers
 
 from API.models import *
@@ -40,3 +41,10 @@ class ChatSerializer(serializers.ModelSerializer):
         model = Chat
         fields = ('id', 'type', 'group_name', 'members', 'creator', 'created_at', 'messages')
         read_only_fields = ['creator', 'created_at']
+
+
+class AsyncMessageSerializer(async_serializers.ModelSerializer):
+    class Meta:
+        model = Message
+        fields = ('pk', 'chat', 'sender', 'body', 'created_at',)
+        read_only_fields = ['sender', 'created_at', 'chat']

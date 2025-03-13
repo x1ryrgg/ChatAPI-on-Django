@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from friend_request.models import FriendRequest
+from API.models import User
 
 
 class RequestSerializer(serializers.ModelSerializer):
@@ -15,3 +16,9 @@ class ResponseSerializer(serializers.ModelSerializer):
         model = FriendRequest
         fields = ('id', 'from_user', 'to_user', 'created_at')
         read_only_fields = ('from_user', 'to_user', 'created_at')
+
+
+class UserSeralizer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username')

@@ -12,21 +12,22 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 import os
 from datetime import timedelta
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
+load_dotenv()
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-2oe*tb%ub_@(k3$_&1ih5ps=msuxe5*70gocw2*#nel-5l*%e-'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 INTERNAL_IPS = [
     "127.0.0.1",
@@ -34,24 +35,28 @@ INTERNAL_IPS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
 
     'API',
     'friend_request',
     'rest_framework',
     'django_extensions',
     "debug_toolbar",
+    'adrf',
 
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -62,6 +67,17 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'Chat_API.urls'
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:3000',
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    'http://localhost:8000',
+]
 
 TEMPLATES = [
     {
@@ -81,6 +97,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Chat_API.wsgi.application'
+ASGI_APPLICATION = 'Chat_API.asgi.application'
 
 
 # Database
@@ -211,3 +228,28 @@ LOGGING = {
     },
 }
 
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://localhost:6379/1", # для docker меняю на redis
+        "KEY_PREFIX": "imdb",
+        "TIMEOUT": 60 * 15,  # in seconds: 60 * 15 (15 minutes)
+    }
+}
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # для docker меняем на redis
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # too
+CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+
+#celery -A Chat_API worker -l info -P eventlet
+
+#celery -A Chat_API beat -l info
+
+#celery -A Chat_API flower --port=5555
+
+# redis-cli flushall - очистка кеша
