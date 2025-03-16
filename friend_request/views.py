@@ -26,31 +26,47 @@ class FriendRequestView(ModelViewSet):
         """
         return FriendRequest.objects.filter(from_user=self.request.user)
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
         """
         Отправка запроса на добавление в друзья
-        url: /requests/
-        body: to_user (int)
+        url: /requests/user_id/
         """
-        to_user_id = self.request.data.get('to_user')
+        to_user_id = self.kwargs.get('user_id')
         to_user = get_object_or_404(User, id=to_user_id)
         from_user = self.request.user
 
+        # Проверяем существование запроса
         if FriendRequest.objects.filter(from_user=from_user, to_user=to_user).exists():
-            return Response(_('Запрос уже отправлен.'))
+            return Response(_("Запрос уже отправлен."), status=status.HTTP_400_BAD_REQUEST)
 
+        # Проверяем самозапрос
         if from_user == to_user:
-            return Response(_("Вы не можете отправлять запрос дружбы самому себе."), status=status.HTTP_400_BAD_REQUEST)
+            return Response(_("Вы не можете отправлять запрос дружбы самому себе."),
+                            status=status.HTTP_400_BAD_REQUEST)
 
-        serializer.save(from_user=from_user)
+        # Сохраняем запрос через perform_create
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)  # Валидируем данные
+        self.perform_create(serializer)
+
+        # Возвращаем кастомный ответ
+        return Response(
+            _(f"Запрос пользователю {to_user.username} с id {to_user_id} успешно отправлен."),
+            status=status.HTTP_201_CREATED
+        )
+
+    def perform_create(self, serializer):
+        to_user_id = self.kwargs.get('user_id')
+        to_user = get_object_or_404(User, id=to_user_id)
+        from_user = self.request.user
+        serializer.save(to_user=to_user, from_user=from_user)
 
     def destroy(self, request, *args, **kwargs):
         """
         Удаление запроса
-        url: /requests/
-        body: to_user (int)
+        url: /requests/user_id/
         """
-        to_user_id = self.request.data.get('to_user')
+        to_user_id = self.kwargs.get('user_id')
         friend_request = FriendRequest.objects.get(from_user=self.request.user, to_user=to_user_id)
         friend_request.delete()
 
@@ -66,7 +82,7 @@ class FriendRequestView(ModelViewSet):
         """
         friends = request.user.friends.all()
         query = User.objects.exclude(id__in=friends.values_list('id', flat=True))
-        serializer = UserSeralizer(query, many=True)
+        serializer = UserSerializer(query, many=True)
         return Response(serializer.data)
 
 
@@ -112,7 +128,7 @@ class FriendResponseView(ModelViewSet):
 
 
 class FriendsViewSet(ModelViewSet):
-    serializer_class = UserSeralizer
+    serializer_class = UserSerializer
     http_method_names = ['get', 'delete']
     permission_classes = [IsAuthenticated]
 

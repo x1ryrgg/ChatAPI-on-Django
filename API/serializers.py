@@ -30,7 +30,7 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ('pk', 'chat', 'sender', 'body', 'created_at',)
-        read_only_fields = ['sender', 'created_at', 'chat']
+        read_only_fields = ('sender', 'created_at', 'chat')
 
 
 class ChatSerializer(serializers.ModelSerializer):
@@ -40,7 +40,14 @@ class ChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chat
         fields = ('id', 'type', 'group_name', 'members', 'creator', 'created_at', 'messages')
-        read_only_fields = ['creator', 'created_at']
+        read_only_fields = ('creator', 'created_at')
+
+
+class ChatUserControlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chat
+        fields = ('id', 'type', 'group_name', 'members', 'creator', 'created_at')
+        read_only_fields = ('creator', 'created_at')
 
 
 class AsyncMessageSerializer(async_serializers.ModelSerializer):

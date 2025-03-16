@@ -111,7 +111,7 @@ DATABASES = {
            'NAME': os.getenv('DB_NAME', 'chat'),
            'USER': os.getenv('DB_USER', 'postgres'),
            'PASSWORD': os.getenv('DB_PASSWORD', '1234'),
-           'HOST': os.getenv('DB_HOST', 'db'),
+           'HOST': os.getenv('DB_HOST', 'localhost'), # db for docker
            'PORT': os.getenv('DB_PORT', '5432'),
        }
     }
@@ -232,15 +232,15 @@ LOGGING = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1", # для docker меняю на redis
+        "LOCATION": "redis://localhost:6379/1", # для docker меняю на redis
         "KEY_PREFIX": "imdb",
         "TIMEOUT": 60 * 15,  # in seconds: 60 * 15 (15 minutes)
     }
 }
 
 
-CELERY_BROKER_URL = 'redis://redis:6379/0' # для docker меняем на redis
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0' # too
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # для docker меняем на redis
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # too
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

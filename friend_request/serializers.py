@@ -8,7 +8,7 @@ class RequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = FriendRequest
         fields = ('id', 'from_user', 'to_user', 'created_at')
-        read_only_fields =('from_user', 'created_at')
+        read_only_fields =('from_user', 'created_at', 'to_user')
 
 
 class ResponseSerializer(serializers.ModelSerializer):
@@ -18,7 +18,7 @@ class ResponseSerializer(serializers.ModelSerializer):
         read_only_fields = ('from_user', 'to_user', 'created_at')
 
 
-class UserSeralizer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'username')

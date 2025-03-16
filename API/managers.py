@@ -7,24 +7,35 @@ logger = logging.getLogger(__name__)
 
 class UserManager(BaseUserManager):
 
-    def create_user(self, username: str = None, password=None, email=None, **extra_fields):
-        if email is None:
-            raise ValueError('email must be set')
+    def get_queryset(self):
+        return super().get_queryset()
+
+    def create_user(self,  email, password=None, username: str = None, **extra_fields):
+        """
+        Creates and saves User with the given email and password
+        """
+
+        if not email:
+            raise ValueError("The email field is required")
 
         if username is None:
             username = email
 
         email = self.normalize_email(email)
-        user =self.model(username=username, email=email, password=password, **extra_fields)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
         user.save()
-        logger.info('Created new user "%s"' % username)
+        logger.info("%s user, base folders and 'Favorites' room are created" % user)
         return user
 
-    def create_superuser(self, email, password=None, username: str = None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        user = self.create_user(email, password, username, **extra_fields)
-        logger.info('Created new superuser "%s"' % username)
+    def create_superuser(self, email, password=None, username=None, **extra_fields):
+        """
+        Creates and saves superuser with the given email and password
+        """
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        user = self.create_user(email, username, password, **extra_fields)
+        logger.info("%s superuser created" % user)
         return user
 
 

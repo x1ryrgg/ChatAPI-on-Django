@@ -11,18 +11,21 @@ routerchat = routers.DefaultRouter()
 routerchat.register(r'', ChatAPIView, basename='chatapi')
 
 routermessage = routers.DefaultRouter()
-routermessage.register(r'messages', MessageApiView, basename='messageapi')
+routermessage.register(r'', MessageApiView, basename='messageapi')
 
 
 router_test = routers.DefaultRouter()
 router_test.register(r'', MessageViewSet, basename='sms')
 
 urlpatterns = [
-    path('', ChatsView.as_view(), name='chats'),
+    path('', ChatsView.as_view()),
     path('user/', include(router.urls)),
-    path('chats/', include(routerchat.urls)),
-    path('chat/<int:chat_id>/', include(routermessage.urls)),
-    path('chat/<int:chat_id>/peer/',
+    path('chats/', include(routerchat.urls), name='chats'),
+    path('chat/<int:id>/messages/', MessageApiView.as_view({'get': "list",
+                                                            "post": 'create'}), name='messages'),
+    path('chat/<int:id>/messages/<int:message_id>/', MessageApiView.as_view({'get': 'retrieve',
+                                                                             'delete': 'destroy'}), name='message'),
+    path('chat/<int:id>/peer/',
          ChatUserControlView.as_view({'get': "list",
                                       'patch': 'partial_update',
                                       "delete": "remove_members"}), name='peer'),

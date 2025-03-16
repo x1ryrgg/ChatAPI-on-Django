@@ -5,9 +5,24 @@ from .managers import *
 
 class User(AbstractUser):
     friends = models.ManyToManyField('self', blank=True)
+    objects = UserManager()
 
     def __str__(self):
-        return f"{self.username}, {self.email}, pk {self.pk}"
+        return "username: %s, email: %s, pk: %s" % (self.username, self.email, self.pk)
+
+    def get_friends(self):
+        return [friend.username for friend in self.friends.all()]
+
+    def set_friends(self, friends):
+        set_friends = []
+        for friend in friends:
+            friend_instance = User.objects.filter(id=friend).first()
+            if friend_instance == self:
+                raise ValueError("Нельзя добавлять самого себя в друзья.")
+            set_friends.append(friend)
+
+        self.friends.set(set_friends)
+        return self.friends.all()
 
 
 class Chat(models.Model):
@@ -27,7 +42,10 @@ class Chat(models.Model):
         verbose_name_plural = 'Чаты'
 
     def __str__(self):
-        return f'Name: {self.group_name}, pk: {self.pk}, type: {self.type}'
+        return 'name: %s, type: %s, pk: %s' % (self.group_name, self.type, self.pk)
+
+    def get_members(self):
+        return [member.username for member in self.members.all()]
 
 
 class Message(models.Model):
@@ -43,4 +61,4 @@ class Message(models.Model):
         ordering = ['created_at']
 
     def __str__(self):
-        return f'Sender {self.sender} | message {self.body[:50]} '
+        return 'sender: %s, message: %s' % (self.sender, self.body[:50])

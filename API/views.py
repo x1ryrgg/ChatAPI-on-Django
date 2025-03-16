@@ -16,7 +16,10 @@ from django.core.cache import cache
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
+
+from . import permissions
 from .models import *
+from .permissions import IsMemberOfChat
 from .serializers import *
 from .tasks import add_numbers
 
@@ -33,12 +36,8 @@ class RegisterView(generics.CreateAPIView):
         """
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()  # Создаем нового пользователя
-            refresh = RefreshToken.for_user(user)  # Генерируем токены
-            return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -64,20 +63,14 @@ class user(ModelViewSet):
 class ChatsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @staticmethod
-    def get(request):
+    def get(self, request):
         """
         Информация о пользователе и о чатах, в которых он присутствует
-        url: /chats/
+        url: ''
         """
         user = request.user
-
-        chats_key = f'chatgroup_data_{user.username}'
-        chats_data = cache.get(chats_key)
-        if not chats_data:
-            chats_query = Chat.objects.filter(members=user).prefetch_related('members')
-            chats_data = ChatSerializer(chats_query, many=True).data
-            cache.set(chats_key, chats_data, 60)
+        chats_query = Chat.objects.filter(members=user).prefetch_related('members')
+        chats_data = ChatSerializer(chats_query, many=True).data
 
         context = {
             'user': UserSerializer(user).data,
@@ -98,7 +91,7 @@ class ChatsView(APIView):
 #         chat.members.add(self.request.user)
 
 class ChatAPIView(ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsMemberOfChat]
     serializer_class = ChatSerializer
     http_method_names = ['get', 'post', 'delete']
 
@@ -108,20 +101,14 @@ class ChatAPIView(ModelViewSet):
         url: /chats/
         """
         user = self.request.user
-        chats_key = f'chatgroup_data_{user.id}'  # Ключ кэша для текущего пользователя
-
-        # Проверяем, есть ли данные в кэше
+        chats_key = f'chatgroup_data_{user.id}'
         cached_data = cache.get(chats_key)
         if cached_data:
-            # Возвращаем QuerySet на основе данных из кэша
             return Chat.objects.filter(id__in=[chat['id'] for chat in cached_data])
-
-        # Если данных нет в кэше, получаем их из базы данных
         chats_query = Chat.objects.filter(members=user).prefetch_related('members')
         chats_data = ChatSerializer(chats_query, many=True).data
 
-        # Сохраняем данные в кэше
-        cache.set(chats_key, chats_data, timeout=60)  # Кэшируем на 60 секунд
+        cache.set(chats_key, chats_data, timeout=60)
 
         return chats_query
 
@@ -160,6 +147,7 @@ class ChatAPIView(ModelViewSet):
         """
         instance = self.get_object()
         serializer = self.get_serializer(instance)
+
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -170,14 +158,14 @@ class ChatAPIView(ModelViewSet):
         instance = self.get_object()
 
         if instance.creator != self.request.user:
-            raise PermissionDenied(_("Только создатель чата может его удалять."))
+            raise permissions.PermissionDenied(_("Только создатель чата может его удалять."))
 
         self.perform_destroy(instance)
         return Response(_(f"Чат {instance.group_name} успешно удален."))
 
 
 class MessageApiView(ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsMemberOfChat]
     serializer_class = MessageSerializer
     lookup_field = 'id'
     http_method_names = ['get', 'post', 'delete', 'patch']
@@ -187,12 +175,7 @@ class MessageApiView(ModelViewSet):
         Сообщения в конкретном чате
         url: chat/chat_id/messages/
         """
-        chat_id = self.kwargs.get('chat_id')
-        chat = get_object_or_404(Chat, id=chat_id)
-
-        if self.request.user not in chat.members.all():
-            return Message.objects.none()
-
+        chat_id = self.kwargs.get('id')
         return Message.objects.filter(chat_id=chat_id).select_related('chat', 'sender')
 
     def perform_create(self, serializer):
@@ -201,12 +184,8 @@ class MessageApiView(ModelViewSet):
         url: chat/chat_id/messages/
         body: body (str)
         """
-        chat_id = self.kwargs.get('chat_id')
+        chat_id = self.kwargs.get('id')
         chat = get_object_or_404(Chat, id=chat_id)
-
-        if self.request.user not in chat.members.all():
-            return Response(_('Вы не являетесь участником этого чата.'), status=status.HTTP_403_FORBIDDEN)
-
         serializer.save(chat=chat)
 
     def retrieve(self, request, *args, **kwargs):
@@ -214,12 +193,9 @@ class MessageApiView(ModelViewSet):
         Данные об конкретном сообщении из чата
         url: chat/chat_id/messages/message_id/
         """
-        instance = self.get_object()
-
-        if request.user not in instance.chat.members.all():
-            return Response(_('У вас нет прав на просмотр этого сообщения.'), status=status.HTTP_403_FORBIDDEN)
-
-        serializer = self.get_serializer(instance)
+        message_id = kwargs.get('message_id')
+        message = get_object_or_404(Message, id=message_id)
+        serializer = MessageSerializer(message, many=False)
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -227,18 +203,19 @@ class MessageApiView(ModelViewSet):
         Удаление сообщения из чата
         url: chat/chat_id/messages/message_id/
         """
-        instance = self.get_object()
+        message_id = kwargs.get('message_id')
+        message = get_object_or_404(Message, id=message_id)
 
-        if instance.sender != self.request.user:
-            return Response(_('Нет прав на на удаление этого объекта'), status=status.HTTP_403_FORBIDDEN)
+        if message.sender != self.request.user:
+            return Response(_('Нет прав на на удаление этого объекта'))
 
-        self.perform_destroy(instance)
-        return Response(_('сообщение успешно удалено.'), status=status.HTTP_204_NO_CONTENT)
+        self.perform_destroy(message)
+        return Response(_('сообщение успешно удалено.'))
 
 
 class ChatUserControlView(ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    serializer_class = ChatSerializer
+    permission_classes = [IsAuthenticated, IsMemberOfChat]
+    serializer_class = ChatUserControlSerializer
     lookup_field = 'id'
     lookup_url_kwarg = 'chat_id'
     http_method_names = ['get', 'patch', 'delete']
@@ -248,7 +225,7 @@ class ChatUserControlView(ModelViewSet):
         Данные о чате
         url: /chat/chat_id>/peer/
         """
-        chat_id = self.kwargs.get('chat_id')
+        chat_id = self.kwargs.get('id')
         return Chat.objects.filter(id=chat_id)
 
     def partial_update(self, request, *args, **kwargs):
@@ -257,7 +234,7 @@ class ChatUserControlView(ModelViewSet):
         url: chat/chat_id/peer/
         body: members (list)
         """
-        chat_id = self.kwargs.get('chat_id')
+        chat_id = self.kwargs.get('id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
         if request.user != chat.creator:
@@ -282,7 +259,7 @@ class ChatUserControlView(ModelViewSet):
         url: chat/chat_id/peer/
         body: members (list)
         """
-        chat_id = self.kwargs.get('chat_id')
+        chat_id = self.kwargs.get('id')
         chat = get_object_or_404(Chat, pk=chat_id)
 
         if request.user != chat.creator:

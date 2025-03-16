@@ -59,7 +59,7 @@ CELERY_RESULT_BACKEND=redis://redis:6379/0
 Build and run containers as daemon 
 `docker-compose up --build -d`
 
-### Create super user
+### Create superuser
 
 Run command in terminal:
 ```bash
