@@ -22,4 +22,4 @@ CMD python manage.py makemigrations \
     && python manage.py migrate \
     && python manage.py collectstatic --no-input \
     && python manage.py createcachetable \
-    && daphne chat.asgi:application --bind 0.0.0.0 --port 8000
+    && ["gunicorn", "Chat_API.wsgi:application", "--bind", "0.0.0.0:8000"]

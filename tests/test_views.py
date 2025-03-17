@@ -6,7 +6,7 @@ from API.models import *
 from API.serializers import *
 
 
-class ChatTest(APITestCase):
+class ChatsTest(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user1 = User.objects.create_user(
@@ -43,3 +43,7 @@ class ChatTest(APITestCase):
         response = self.client.get('')
 
         self.assertEqual(response.status_code, 401)
+
+
+class ChatTests(APITestCase):
+    pass

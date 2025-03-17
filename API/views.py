@@ -3,7 +3,7 @@ import asyncio
 from asgiref.sync import sync_to_async
 from rest_framework.viewsets import ModelViewSet
 from adrf.viewsets import ModelViewSet as AsyncModelViewSet
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import api_view, permission_classes, action
@@ -41,16 +41,7 @@ class RegisterView(generics.CreateAPIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-# @api_view(['GET'])
-# @permission_classes([IsAuthenticated])
-# def users(request):
-#     user = User.objects.all()
-#     serializer = UserSerializer(user, many=True)
-#
-#     return Response(serializer.data)
-#
-
-class user(ModelViewSet):
+class User(ModelViewSet):
     """
     Список пользователей
     url: /user/
@@ -59,36 +50,6 @@ class user(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-
-class ChatsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        """
-        Информация о пользователе и о чатах, в которых он присутствует
-        url: ''
-        """
-        user = request.user
-        chats_query = Chat.objects.filter(members=user).prefetch_related('members')
-        chats_data = ChatSerializer(chats_query, many=True).data
-
-        context = {
-            'user': UserSerializer(user).data,
-            'chats': chats_data,
-        }
-
-        return Response(context)
-
-
-# class ChatCreateView(generics.CreateAPIView):
-#
-#     queryset = Chat.objects.all()
-#     serializer_class = ChatSerializer
-#
-#     def perform_create(self, serializer):
-#         serializer.save(creator=self.request.user)
-#         chat = serializer.save(creator=self.request.user)
-#         chat.members.add(self.request.user)
 
 class ChatAPIView(ModelViewSet):
     permission_classes = [IsAuthenticated, IsMemberOfChat]
@@ -111,6 +72,19 @@ class ChatAPIView(ModelViewSet):
         cache.set(chats_key, chats_data, timeout=60)
 
         return chats_query
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+
+        user_data = UserSerializer(request.user, many=False)
+
+        data = {
+            'user': user_data.data,
+            'chats': serializer.data
+        }
+
+        return Response(data)
 
     def perform_create(self, serializer):
         """

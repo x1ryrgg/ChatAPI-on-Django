@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   web:
     build: .
-    command: bash -c "until PGPASSWORD=${POSTGRES_PASSWORD} psql -h db -U ${POSTGRES_USER} -d ${POSTGRES_NAME} -c '\'; do
-      echo >&2 'Wait for PostgreSQL to be ready...';
-      sleep 10;
-      done; python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn Chat_API.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - .:/app
     ports:
@@ -21,12 +19,22 @@ services:
     image: postgres:14
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - default
     environment:
       POSTGRES_DB: ${POSTGRES_NAME}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-container
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - web
 
   redis:
     image: redis:alpine
@@ -42,6 +50,7 @@ services:
       - .env
     depends_on:
       - redis
+      - db
 
   celery_beat:
     build: .
@@ -52,6 +61,8 @@ services:
       - .env
     depends_on:
       - redis
+      - db
+      - celery_worker
 
 volumes:
   postgres_data:

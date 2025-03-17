@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import *
 
 router = routers.DefaultRouter()
-router.register(r'', user, basename='users')
+router.register(r'', User, basename='users')
 
 routerchat = routers.DefaultRouter()
 routerchat.register(r'', ChatAPIView, basename='chatapi')
@@ -18,9 +18,8 @@ router_test = routers.DefaultRouter()
 router_test.register(r'', MessageViewSet, basename='sms')
 
 urlpatterns = [
-    path('', ChatsView.as_view()),
     path('user/', include(router.urls)),
-    path('chats/', include(routerchat.urls), name='chats'),
+    path('', include(routerchat.urls), name='chats'),
     path('chat/<int:id>/messages/', MessageApiView.as_view({'get': "list",
                                                             "post": 'create'}), name='messages'),
     path('chat/<int:id>/messages/<int:message_id>/', MessageApiView.as_view({'get': 'retrieve',

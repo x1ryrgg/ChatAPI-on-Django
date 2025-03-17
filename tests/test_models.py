@@ -1,8 +1,9 @@
 from django.test import TestCase
 from API.models import User, Message, Chat
+from friend_request.models import FriendRequest
+
 
 class TestClass(TestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.user1 = User.objects.create_user(email='test@example.com', password='qwerty12345', username='testuser')
@@ -45,8 +46,28 @@ class ChatTest(TestCase):
         self.assertEqual(max_length, 64)
 
 
+class FriendRequestTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user1 = User.objects.create_user(email='test@example.com', password='qwerty12345', username='testuser')
+        cls.user2 = User.objects.create_user(email='second_test@example.com', password='qwerty12345', username='second_testuser')
 
+        cls.request = FriendRequest.objects.create(from_user=cls.user1, to_user=cls.user2)
 
+    def test_accept_request(self):
+        FriendRequest.objects.accept(self.request.pk)
 
+        friends_count_user1 = self.user1.friends.all().count()
+        friends_count_user2 = self.user2.friends.all().count()
 
+        self.assertEqual(friends_count_user1, 1)
+        self.assertEqual(friends_count_user2, 1)
 
+    def test_decline_request(self):
+        FriendRequest.objects.decline(self.request.pk)
+
+        friend_count_user1 = self.user1.friends.all().count()
+        friend_count_user2 = self.user2.friends.all().count()
+
+        self.assertEqual(friend_count_user1, 0)
+        self.assertEqual(friend_count_user2, 0)

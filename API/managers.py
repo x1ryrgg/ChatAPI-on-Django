@@ -1,6 +1,7 @@
 from django.contrib.auth.base_user import BaseUserManager
 from .models import *
 import logging
+from django.db import models
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class UserManager(BaseUserManager):
         user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save()
-        logger.info("%s user, base folders and 'Favorites' room are created" % user)
+        logger.info("%s user are created" % user)
         return user
 
     def create_superuser(self, email, password=None, username=None, **extra_fields):
@@ -54,5 +55,5 @@ class MessageManager(models.Manager):
     def create(self, **kwargs):
         obj = self.model(**kwargs)
         obj.save()
-        logger.info('Created new groupchat "%s"' % obj)
+        logger.info('Created new message "%s" in chat "%s" ' % (obj, obj.chat.group_name))
         return obj

@@ -25,7 +25,7 @@ load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG')
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
@@ -35,7 +35,6 @@ INTERNAL_IPS = [
 # Application definition
 
 INSTALLED_APPS = [
-    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -97,8 +96,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Chat_API.wsgi.application'
-ASGI_APPLICATION = 'Chat_API.asgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
@@ -111,11 +108,10 @@ DATABASES = {
            'NAME': os.getenv('DB_NAME', 'chat'),
            'USER': os.getenv('DB_USER', 'postgres'),
            'PASSWORD': os.getenv('DB_PASSWORD', '1234'),
-           'HOST': os.getenv('DB_HOST', 'localhost'), # db for docker
+           'HOST': os.getenv('DB_HOST', 'db'), # db for docker
            'PORT': os.getenv('DB_PORT', '5432'),
        }
     }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -152,6 +148,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -232,15 +229,15 @@ LOGGING = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://localhost:6379/1", # для docker меняю на redis
+        "LOCATION": "redis://redis:6379/1", # для docker меняю на redis
         "KEY_PREFIX": "imdb",
         "TIMEOUT": 60 * 15,  # in seconds: 60 * 15 (15 minutes)
     }
 }
 
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0' # для docker меняем на redis
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # too
+CELERY_BROKER_URL = 'redis://redis:6379/0' # для docker меняем на redis
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0' # too
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

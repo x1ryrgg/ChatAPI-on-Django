@@ -16,7 +16,6 @@ click-repl==0.3.0
 colorama==0.4.6
 constantly==23.10.4
 cryptography==44.0.2
-daphne==4.1.2
 decorator==5.2.1
 Django==5.1.6
 django-cors-headers==4.7.0
@@ -70,3 +69,4 @@ tzdata==2025.1
 vine==5.1.0
 wcwidth==0.2.13
 zope.interface==7.2
+gunicorn==23.0.0
