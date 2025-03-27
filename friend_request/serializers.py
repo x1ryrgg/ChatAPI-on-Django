@@ -18,7 +18,3 @@ class ResponseSerializer(serializers.ModelSerializer):
         read_only_fields = ('from_user', 'to_user', 'created_at')
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('id', 'username')

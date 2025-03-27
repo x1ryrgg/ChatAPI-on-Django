@@ -11,7 +11,7 @@ Chat API
 ## Installation:
 Clone repos
 ```bash 
-git https://github.com/x1ryrgg/Chat-Django.git
+git clone https://github.com/x1ryrgg/ChatAPI-on-Django.git
 ```
 
 You need to activate the venv environment, 

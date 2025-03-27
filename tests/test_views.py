@@ -29,7 +29,7 @@ class ChatsTest(APITestCase):
         token = AccessToken.for_user(self.user1)
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
 
-        response = self.client.get('')
+        response = self.client.get('/index/')
 
         self.assertEqual(response.status_code, 200)
 
@@ -40,9 +40,27 @@ class ChatsTest(APITestCase):
         self.assertEqual(response.data['user'], expected_user)
 
     def test_get_chats_unauth_user(self):
-        response = self.client.get('')
+        response = self.client.get('/index/')
 
         self.assertEqual(response.status_code, 401)
+
+    def test_get_chatstats_creator(self):
+        token = AccessToken.for_user(self.user1)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+        chat = self.chat1.id
+        response = self.client.get(f'/index/{chat}/stats/')
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_get_chatstats_not_creator(self):
+        token = AccessToken.for_user(self.user2)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
+
+        chat = self.chat1.id
+        response = self.client.get(f'/index/{chat}/stats/')
+
+        self.assertEqual(response.status_code, 403)
 
 
 class ChatTests(APITestCase):

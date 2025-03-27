@@ -10,16 +10,12 @@ router.register(r'', User, basename='users')
 routerchat = routers.DefaultRouter()
 routerchat.register(r'', ChatAPIView, basename='chatapi')
 
-routermessage = routers.DefaultRouter()
-routermessage.register(r'', MessageApiView, basename='messageapi')
-
-
 router_test = routers.DefaultRouter()
 router_test.register(r'', MessageViewSet, basename='sms')
 
 urlpatterns = [
-    path('user/', include(router.urls)),
-    path('', include(routerchat.urls), name='chats'),
+    path('users/', include(router.urls)),
+    path('index/', include(routerchat.urls)),
     path('chat/<int:id>/messages/', MessageApiView.as_view({'get': "list",
                                                             "post": 'create'}), name='messages'),
     path('chat/<int:id>/messages/<int:message_id>/', MessageApiView.as_view({'get': 'retrieve',

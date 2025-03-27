@@ -45,10 +45,12 @@ INSTALLED_APPS = [
 
     'API',
     'friend_request',
+    'django_filters',
     'rest_framework',
     'django_extensions',
     "debug_toolbar",
     'adrf',
+    'drf_yasg', #swagger
 
 ]
 
@@ -68,6 +70,7 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'Chat_API.urls'
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:8000',
@@ -108,7 +111,7 @@ DATABASES = {
            'NAME': os.getenv('DB_NAME', 'chat'),
            'USER': os.getenv('DB_USER', 'postgres'),
            'PASSWORD': os.getenv('DB_PASSWORD', '1234'),
-           'HOST': os.getenv('DB_HOST', 'db'), # db for docker
+           'HOST': os.getenv('DB_HOST', 'localhost'), # db for docker
            'PORT': os.getenv('DB_PORT', '5432'),
        }
     }
@@ -162,11 +165,15 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
 
 # Настройки JWT
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),#30 is for test, default=5min
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),#60 is for test, default=5min
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -229,15 +236,15 @@ LOGGING = {
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1", # для docker меняю на redis
+        "LOCATION": "redis://localhost:6379/1", # для docker меняю на redis
         "KEY_PREFIX": "imdb",
         "TIMEOUT": 60 * 15,  # in seconds: 60 * 15 (15 minutes)
     }
 }
 
 
-CELERY_BROKER_URL = 'redis://redis:6379/0' # для docker меняем на redis
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0' # too
+CELERY_BROKER_URL = 'redis://localhost:6379/0' # для docker меняем на redis
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0' # too
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -250,3 +257,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 #celery -A Chat_API flower --port=5555
 
 # redis-cli flushall - очистка кеша
+
+
+
+

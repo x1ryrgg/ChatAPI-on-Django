@@ -5,7 +5,7 @@ from .managers import *
 
 class User(AbstractUser):
     friends = models.ManyToManyField('self', blank=True)
-    objects = UserManager()
+
 
     def __str__(self):
         return "username: %s, email: %s, pk: %s" % (self.username, self.email, self.pk)

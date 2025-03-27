@@ -7,19 +7,19 @@ from API.models import *
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username', 'password', 'email')
+        fields = ('id', 'username', 'email')
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('username', 'password', 'email')
+        fields = ['email', 'password', 'username']
 
     def create(self, validated_data):
         user = User.objects.create_user(
-            username=validated_data['username'],
+            email=validated_data['email'],
             password=validated_data['password'],
-            email=validated_data['email']
+            username=validated_data['username'],
         )
         return user
 
@@ -55,3 +55,16 @@ class AsyncMessageSerializer(async_serializers.ModelSerializer):
         model = Message
         fields = ('pk', 'chat', 'sender', 'body', 'created_at',)
         read_only_fields = ['sender', 'created_at', 'chat']
+
+
+class ChatStatsSerializer(serializers.Serializer):
+    total_members = serializers.IntegerField()
+    total_messages = serializers.IntegerField()
+    last_message = serializers.SerializerMethodField()
+    last_message_date = serializers.DateTimeField(allow_null=True)
+
+    def get_last_message(self, obj):
+        last_message = obj['last_message']
+        if last_message:
+            return last_message.body
+        return None

@@ -10,12 +10,14 @@ class IsMemberOfChat(permissions.BasePermission):
     """
     Резрешение, которое позволяет использовать ресурс только участникам чата.
     """
+    message = 'Вы не являетесь участником этого чата.'
+
     def has_permission(self, request, view):
         id = view.kwargs.get('id')
         if id:
             chat = get_object_or_404(Chat, id=id)
             if request.user not in chat.members.all():
-                raise PermissionDenied(_("Вы не являетесь участником этого чата."))
+                return False
         return True
 
     def has_object_permission(self, request, view, obj):

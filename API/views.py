@@ -5,10 +5,10 @@ from rest_framework.viewsets import ModelViewSet
 from adrf.viewsets import ModelViewSet as AsyncModelViewSet
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render
-from rest_framework import generics, status, viewsets
+from rest_framework import generics, status, viewsets, filters
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.exceptions import ValidationError, PermissionDenied
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.utils.translation import gettext_lazy as _
@@ -50,6 +50,22 @@ class User(ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    @action(methods=['get'], detail=True, url_path='mutual')
+    def mutual_friends(self, request, *args, **kwargs):
+        current_user = request.user
+        other_user = self.get_object()
+
+        common_friends = current_user.friends.filter(friends=other_user).distinct()
+        serializer = UserSerializer(common_friends, many=True)
+        if common_friends:
+            return Response(serializer.data)
+        return Response(_("У вас нет общих друзей."))
+
 
 class ChatAPIView(ModelViewSet):
     permission_classes = [IsAuthenticated, IsMemberOfChat]
@@ -57,31 +73,28 @@ class ChatAPIView(ModelViewSet):
     http_method_names = ['get', 'post', 'delete']
 
     def get_queryset(self):
-        """
-        Все чаты, в которых присутствует пользователь
-        url: /chats/
-        """
         user = self.request.user
-        chats_key = f'chatgroup_data_{user.id}'
-        cached_data = cache.get(chats_key)
-        if cached_data:
-            return Chat.objects.filter(id__in=[chat['id'] for chat in cached_data])
         chats_query = Chat.objects.filter(members=user).prefetch_related('members')
-        chats_data = ChatSerializer(chats_query, many=True).data
-
-        cache.set(chats_key, chats_data, timeout=60)
-
         return chats_query
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True)
+        """
+        Все чаты, в которых присутствует пользователь
+        url: /index/
+        """
+        user = request.user
+        user_data = UserSerializer(user, many=False)
 
-        user_data = UserSerializer(request.user, many=False)
+        chats_data_key = f'chatgroup_data_{user.username}'
+        chats_data = cache.get(chats_data_key)
+        if not chats_data:
+            chats_query = Chat.objects.filter(members=user).prefetch_related('members')
+            chats_data = ChatSerializer(chats_query, many=True).data
+            cache.set(chats_data_key, chats_data, 60)
 
         data = {
             'user': user_data.data,
-            'chats': serializer.data
+            'chats': chats_data
         }
 
         return Response(data)
@@ -89,7 +102,7 @@ class ChatAPIView(ModelViewSet):
     def perform_create(self, serializer):
         """
         Создание чата
-        url: /chats/
+        url: /index/
         body {
             group_name (str), members (list)
         }
@@ -117,7 +130,7 @@ class ChatAPIView(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         """
         Просмотр чата и его сообщений
-        url: /chats/chat_id/
+        url: /index/chat_id/
         """
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -127,7 +140,7 @@ class ChatAPIView(ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """
         Удаление чата
-        url: /chats/chat_id/
+        url: /index/chat_id/
         """
         instance = self.get_object()
 
@@ -136,6 +149,25 @@ class ChatAPIView(ModelViewSet):
 
         self.perform_destroy(instance)
         return Response(_(f"Чат {instance.group_name} успешно удален."))
+
+    @action(methods=['get'], detail=True, url_path='stats')
+    def stats(self, request, *args, **kwargs):
+        """
+        Просмотр статистики чата
+        url: /index/chat_id/stats/
+        """
+        chat = self.get_object()
+        stata = {
+            'total_members': chat.members.count(),
+            'total_messages': chat.messages.count(),
+            "last_message": chat.messages.order_by('-created_at').first(),
+            'last_message_date': chat.messages.order_by('-created_at').first().created_at if chat.messages.exists() else None,
+        }
+        serializer = ChatStatsSerializer(stata)
+        if request.user != chat.creator:
+            raise PermissionDenied(_('Только создатель чата может просматривать статистику чата'))
+
+        return Response(serializer.data)
 
 
 class MessageApiView(ModelViewSet):

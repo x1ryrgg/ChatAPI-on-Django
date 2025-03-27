@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
-from rest_framework import status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status, filters
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -12,6 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from API.models import User
 from friend_request.models import FriendRequest
 from friend_request.serializers import *
+from API.serializers import UserSerializer
 
 
 class FriendRequestView(ModelViewSet):
@@ -131,11 +133,21 @@ class FriendsViewSet(ModelViewSet):
     serializer_class = UserSerializer
     http_method_names = ['get', 'delete']
     permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username']
 
     def get_queryset(self):
+        """
+        Просмотр друзей пользователя
+        url: /friends/
+        """
         return self.request.user.friends.all()
 
     def destroy(self, request, *args, **kwargs):
+        """
+        Удаление пользователя из списка друзей
+        url: /friends/pk/
+        """
         pk = self.kwargs.get('pk')
         user = get_object_or_404(User, pk=pk)
         request.user.friends.remove(user)
